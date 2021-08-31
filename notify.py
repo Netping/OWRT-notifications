@@ -1,6 +1,6 @@
 import enum
-import smtpmail
 import ubus
+from smtpmail import *
 from datetime import datetime
 from threading import Thread
 from threading import Lock
@@ -23,6 +23,7 @@ class event_type(enum.Enum):
 
 class event:
     name = ""
+    active = False
     ubus_event = event_type.empty
     date_time = []
     trigger_condition = ''
@@ -32,6 +33,8 @@ class event:
 class notificator:
     events = []
     pollThread = None
+    eventAccepted = event_type.empty
+    eventInfo = ''
     confName = 'notifyconf'
     default_event = event()
 
@@ -68,8 +71,8 @@ class notificator:
         confvalues = ubus.call("uci", "get", {"config": notificator.confName})
         for confdict in list(confvalues[0]['values'].values()):
             if confdict['.type'] == 'notify' and confdict['.name'] == 'prototype':
-                print(confdict)
                 notificator.default_event.name = confdict['name']
+                notificator.default_event.active = bool(int(confdict['state']))
                 notificator.default_event.ubus_event = notificator.event_type_map[confdict['event']]
                 try:
                     notificator.default_event.trigger_condition = confdict['trigger']
@@ -97,11 +100,15 @@ class notificator:
                 if exist:
                     continue
 
+                try:
+                    e.active = bool(int(confdict['state']))
+                except:
+                    e.active = notificator.default_event.active
                 e.ubus_event = notificator.event_type_map[confdict['event']]
                 e.trigger_condition = confdict['trigger']
                 e.notify_method = notificator.notify_type_map[confdict['method']]
-                #TODO datetime table for event
-                #TODO settings table for event
+                e.date_time = notificator.__parse_timetable(confdict['timetable'])
+                e.settings = notificator.__make_settings(e.notify_method, confdict)
 
                 if e.ubus_event == event_type.empty:
                     e.ubus_event = notificator.default_event.ubus_event
@@ -128,36 +135,107 @@ class notificator:
                 
         ubus.disconnect()
 
+    def __parse_timetable(value):
+        ret = []
+
+        records = value.split(',')
+        for r in records:
+            t = r.split('-')
+            new = [ datetime.strptime(t[0], "%d/%m/%Y %H:%M:%S"), datetime.strptime(t[1], "%d/%m/%Y %H:%M:%S") ]
+            ret.append(new)
+
+        return ret
+
+    def __make_settings(method, dictionary):
+        ret = {}
+
+        if method == notify_type.email:
+            try:
+                ret['message'] = dictionary['text']
+            except:
+                ret['message'] = ''
+
+            try:
+                ret['fromaddr'] = dictionary['from']
+            except:
+                ret['fromaddr'] = ''
+
+            try:
+                ret['subject'] = dictionary['subject']
+            except:
+                ret['subject'] = ''
+
+            try:
+                ret['signature'] = dictionary['signature']
+            except:
+                ret['signature'] = ''
+
+            try:
+                ret['toaddr'] = [ a for a in dictionary['sendto'].split(',')]
+            except:
+                ret['toaddr'] = []
+
+        elif method == notify_type.syslog:
+            pass
+        elif method == notify_type.snmptrap:
+            pass
+        elif method == notify_type.sms:
+            pass
+        else:
+            print('Bad notify type')
+
+
+        return ret
+
     def __send_notify(self, e):
         if e.notify_method == notify_type.email:
             try:
                 smtpObj = mailsender()
-                smtpObj.sendmessage(e.settings["fromaddr"], 
-                                    e.settings["toaddr"], 
-                                    e.settings["text"], 
-                                    e.settings["subj"],
-                                    e.settings["sign"])
+                for addr in e.settings['toaddr']:
+                    smtpObj.sendmessage(e.settings["fromaddr"], addr, e.settings['message'], e.settings['subject'], e.settings['signature'])
             except:
                 print("Can't send mail")
 
         else:
             print("Unknown notify type")
 
+    def handle_event(event, data):
+        notificator.eventAccepted = notificator.event_type_map[data['event']]
+        notificator.eventInfo = data['info']
+
     def __poll(self):
         stop = False
         while not stop:
 
-            #TODO waiting for ubus event
+            #waiting for ubus event
+            ubus.listen(("signal", notificator.handle_event))
+            ubus.loop()
+
             now = datetime.now()
+
+            print("Poll loop")
+
             notificator.mutex.acquire()
 
             if not notificator.events:
+                print("No events")
                 stop = True
                 notificator.mutex.release()
                 continue
 
-            #for e in events:
-                #TODO check if current date time in event timetable and ubus event equal option event
-                #    self.__send_notify(e)
+            for e in notificator.events:
+                if e.active:
+                    #check event
+                    if e.ubus_event != notificator.eventAccepted:
+                        continue
+                    #TODO check triggers
+                    #check time
+                    for t in e.date_time:
+                        if now >= t[0] and now <= t[1]:
+                            print(e.settings)
+                            self.__send_notify(e)
+                            notificator.events.remove(e)
+
+            notificator.eventAccepted = False
 
             notificator.mutex.release()
