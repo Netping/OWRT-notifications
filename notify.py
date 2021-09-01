@@ -193,7 +193,24 @@ class notificator:
                 #smtpObj = mailsender()
                 for addr in e.settings['toaddr']:
                     #smtpObj.sendmessage(e.settings["fromaddr"], addr, e.settings['message'], e.settings['subject'], e.settings['signature'])
-                    os.system('python3 /etc/netping_email/sendtestmail.py --fromaddr ' + e.settings["fromaddr"] + ' --toaddr ' + addr +' --subject ' + e.settings['subject'] + ' --signature ' + e.settings['signature'] + ' --text ' + e.settings['message'])
+
+                    args = ''
+
+                    if e.settings['fromaddr']:
+                        args = args + '--fromaddr \"' + e.settings['fromaddr'] + '\" '
+
+                    args = args + '--toaddr \"' + addr + '\" '
+
+                    if e.settings['subject']:
+                        args = args + '--subject \"' + e.settings['subject'] + '\" '
+
+                    if e.settings['signature']:
+                        args = args + '--signature \"' + e.settings['signature'] + '\" '
+                    
+                    args = args + '--text \"' + e.settings['message'] + '\"'
+
+                    #os.system('python3 /etc/netping_email/sendtestmail.py --fromaddr ' + fromaddr + ' --toaddr ' + addr +' --subject ' + subject + ' --signature ' + signature + ' --text ' + e.settings['message'])
+                    os.system('python3 /etc/netping_email/sendtestmail.py ' + args)
             except:
                 print("Can't send mail")
 
@@ -203,17 +220,13 @@ class notificator:
     def __handle_event(self, event, data):
         now = datetime.now()
 
-        print("Poll loop")
-
         notificator.mutex.acquire()
 
         if not notificator.events:
-            print("No events")
             notificator.mutex.release()
             return
 
         for e in notificator.events:
-            print(e.ubus_event)
             if e.active:
                 #check event
                 if e.ubus_event != notificator.event_type_map[data['event']]:
@@ -222,7 +235,6 @@ class notificator:
                 #check time
                 for t in e.date_time:
                     if now >= t[0] and now <= t[1]:
-                        print(e.settings)
                         self.__send_notify(e)
 
         notificator.mutex.release()
