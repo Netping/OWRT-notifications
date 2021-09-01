@@ -1,6 +1,6 @@
 import enum
 import ubus
-from smtpmail import *
+import os
 from datetime import datetime
 from threading import Thread
 from threading import Lock
@@ -33,8 +33,6 @@ class event:
 class notificator:
     events = []
     pollThread = None
-    eventAccepted = event_type.empty
-    eventInfo = ''
     confName = 'notifyconf'
     default_event = event()
 
@@ -63,77 +61,79 @@ class notificator:
         print("Can't find event with name \"" + ename + "\"")
 
     def applyconfig(self):
+        notificator.mutex.acquire()
+
         try:
             ubus.connect()
+
+            confvalues = ubus.call("uci", "get", {"config": notificator.confName})
+            for confdict in list(confvalues[0]['values'].values()):
+                if confdict['.type'] == 'notify' and confdict['.name'] == 'prototype':
+                    notificator.default_event.name = confdict['name']
+                    notificator.default_event.active = bool(int(confdict['state']))
+                    notificator.default_event.ubus_event = notificator.event_type_map[confdict['event']]
+                    try:
+                        notificator.default_event.trigger_condition = confdict['trigger']
+                    except:
+                        notificator.default_event.trigger_condition = ''
+                    notificator.default_event.notify_method = notificator.notify_type_map[confdict['method']]
+                    #TODO datetime table for event
+                    #TODO settings table for event
+
+                if confdict['.type'] == 'notify' and confdict['.name'] != 'prototype':
+                    exist = False
+                    e = event()
+                    e.name = confdict['name']
+
+                    for element in notificator.events:
+                        if element.name == e.name:
+                            print("Event with name " + e.name + " is exists!")
+                            exist = True
+                            break
+
+                    if e.name == '':
+                        print('Name can\'t be empty')
+                        continue
+
+                    if exist:
+                        continue
+
+                    try:
+                        e.active = bool(int(confdict['state']))
+                    except:
+                        e.active = notificator.default_event.active
+                    e.ubus_event = notificator.event_type_map[confdict['event']]
+                    e.trigger_condition = confdict['trigger']
+                    e.notify_method = notificator.notify_type_map[confdict['method']]
+                    e.date_time = notificator.__parse_timetable(confdict['timetable'])
+                    e.settings = notificator.__make_settings(e.notify_method, confdict)
+
+                    if e.ubus_event == event_type.empty:
+                        e.ubus_event = notificator.default_event.ubus_event
+
+                    if e.trigger_condition == '':
+                        e.trigger_condition = notificator.default_event.trigger_condition
+
+                    if e.notify_method == notify_type.empty:
+                        e.notify_method = notificator.default_event.notify_method
+
+                    if not e.date_time:
+                        e.date_time = notificator.default_event.date_time
+
+                    if not e.settings:
+                        e.settings = notificator.default_event.settings
+
+                    notificator.events.append(e)
+
+                    if not notificator.pollThread:
+                        notificator.pollThread = Thread(target=self.__poll, args=())
+                        notificator.pollThread.start()
+
+            ubus.disconnect()
         except:
             print("Can't connect to ubus")
 
-        confvalues = ubus.call("uci", "get", {"config": notificator.confName})
-        for confdict in list(confvalues[0]['values'].values()):
-            if confdict['.type'] == 'notify' and confdict['.name'] == 'prototype':
-                notificator.default_event.name = confdict['name']
-                notificator.default_event.active = bool(int(confdict['state']))
-                notificator.default_event.ubus_event = notificator.event_type_map[confdict['event']]
-                try:
-                    notificator.default_event.trigger_condition = confdict['trigger']
-                except:
-                    notificator.default_event.trigger_condition = ''
-                notificator.default_event.notify_method = notificator.notify_type_map[confdict['method']]
-                #TODO datetime table for event
-                #TODO settings table for event
-
-            if confdict['.type'] == 'notify' and confdict['.name'] != 'prototype':
-                exist = False
-                e = event()
-                e.name = confdict['name']
-
-                for element in notificator.events:
-                    if element.name == e.name:
-                        print("Event with name " + e.name + " is exists!")
-                        exist = True
-                        break
-
-                if e.name == '':
-                    print('Name can\'t be empty')
-                    continue
-
-                if exist:
-                    continue
-
-                try:
-                    e.active = bool(int(confdict['state']))
-                except:
-                    e.active = notificator.default_event.active
-                e.ubus_event = notificator.event_type_map[confdict['event']]
-                e.trigger_condition = confdict['trigger']
-                e.notify_method = notificator.notify_type_map[confdict['method']]
-                e.date_time = notificator.__parse_timetable(confdict['timetable'])
-                e.settings = notificator.__make_settings(e.notify_method, confdict)
-
-                if e.ubus_event == event_type.empty:
-                    e.ubus_event = notificator.default_event.ubus_event
-
-                if e.trigger_condition == '':
-                    e.trigger_condition = notificator.default_event.trigger_condition
-
-                if e.notify_method == notify_type.empty:
-                    e.notify_method = notificator.default_event.notify_method
-
-                if not e.date_time:
-                    e.date_time = notificator.default_event.date_time
-
-                if not e.settings:
-                    e.settings = notificator.default_event.settings
-
-                notificator.mutex.acquire()
-                notificator.events.append(e)
-                notificator.mutex.release()
-
-                if not notificator.pollThread:
-                    notificator.pollThread = Thread(target=self.__poll, args=())
-                    notificator.pollThread.start()
-                
-        ubus.disconnect()
+        notificator.mutex.release()
 
     def __parse_timetable(value):
         ret = []
@@ -190,52 +190,52 @@ class notificator:
     def __send_notify(self, e):
         if e.notify_method == notify_type.email:
             try:
-                smtpObj = mailsender()
+                #smtpObj = mailsender()
                 for addr in e.settings['toaddr']:
-                    smtpObj.sendmessage(e.settings["fromaddr"], addr, e.settings['message'], e.settings['subject'], e.settings['signature'])
+                    #smtpObj.sendmessage(e.settings["fromaddr"], addr, e.settings['message'], e.settings['subject'], e.settings['signature'])
+                    os.system('python3 /etc/netping_email/sendtestmail.py --fromaddr ' + e.settings["fromaddr"] + ' --toaddr ' + addr +' --subject ' + e.settings['subject'] + ' --signature ' + e.settings['signature'] + ' --text ' + e.settings['message'])
             except:
                 print("Can't send mail")
 
         else:
             print("Unknown notify type")
 
-    def handle_event(event, data):
-        notificator.eventAccepted = notificator.event_type_map[data['event']]
-        notificator.eventInfo = data['info']
+    def __handle_event(self, event, data):
+        now = datetime.now()
+
+        print("Poll loop")
+
+        notificator.mutex.acquire()
+
+        if not notificator.events:
+            print("No events")
+            notificator.mutex.release()
+            return
+
+        for e in notificator.events:
+            print(e.ubus_event)
+            if e.active:
+                #check event
+                if e.ubus_event != notificator.event_type_map[data['event']]:
+                    continue
+                #TODO check triggers
+                #check time
+                for t in e.date_time:
+                    if now >= t[0] and now <= t[1]:
+                        print(e.settings)
+                        self.__send_notify(e)
+
+        notificator.mutex.release()
 
     def __poll(self):
-        stop = False
-        while not stop:
+        notificator.mutex.acquire()
 
-            #waiting for ubus event
-            ubus.listen(("signal", notificator.handle_event))
-            ubus.loop()
+        ubus.connect()
 
-            now = datetime.now()
+        ubus.listen(("signal", self.__handle_event))
 
-            print("Poll loop")
+        notificator.mutex.release()
 
-            notificator.mutex.acquire()
+        ubus.loop()
 
-            if not notificator.events:
-                print("No events")
-                stop = True
-                notificator.mutex.release()
-                continue
-
-            for e in notificator.events:
-                if e.active:
-                    #check event
-                    if e.ubus_event != notificator.eventAccepted:
-                        continue
-                    #TODO check triggers
-                    #check time
-                    for t in e.date_time:
-                        if now >= t[0] and now <= t[1]:
-                            print(e.settings)
-                            self.__send_notify(e)
-                            notificator.events.remove(e)
-
-            notificator.eventAccepted = False
-
-            notificator.mutex.release()
+        ubus.disconnect()

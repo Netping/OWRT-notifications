@@ -3,7 +3,9 @@
 from notify import *
 
 
-
+def handle_event(event, data):
+    print(event)
+    print(data)
 
 def main():
     n = notificator()
