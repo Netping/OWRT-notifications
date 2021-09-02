@@ -1,6 +1,7 @@
 import enum
 import ubus
 import os
+import re
 from datetime import datetime
 from threading import Thread
 from threading import Lock
@@ -26,7 +27,7 @@ class event:
     active = False
     ubus_event = event_type.empty
     date_time = []
-    trigger_condition = ''
+    expression = ''
     notify_method = notify_type.empty
     settings = {}
 
@@ -73,9 +74,9 @@ class notificator:
                     notificator.default_event.active = bool(int(confdict['state']))
                     notificator.default_event.ubus_event = notificator.event_type_map[confdict['event']]
                     try:
-                        notificator.default_event.trigger_condition = confdict['trigger']
+                        notificator.default_event.expression = confdict['expression']
                     except:
-                        notificator.default_event.trigger_condition = ''
+                        notificator.default_event.expression = ''
                     notificator.default_event.notify_method = notificator.notify_type_map[confdict['method']]
                     #TODO datetime table for event
                     #TODO settings table for event
@@ -103,7 +104,8 @@ class notificator:
                     except:
                         e.active = notificator.default_event.active
                     e.ubus_event = notificator.event_type_map[confdict['event']]
-                    e.trigger_condition = confdict['trigger']
+                    e.expression = confdict['expression']
+
                     e.notify_method = notificator.notify_type_map[confdict['method']]
                     e.date_time = notificator.__parse_timetable(confdict['timetable'])
                     e.settings = notificator.__make_settings(e.notify_method, confdict)
@@ -111,8 +113,8 @@ class notificator:
                     if e.ubus_event == event_type.empty:
                         e.ubus_event = notificator.default_event.ubus_event
 
-                    if e.trigger_condition == '':
-                        e.trigger_condition = notificator.default_event.trigger_condition
+                    if e.expression == '':
+                        e.expression = notificator.default_event.expression
 
                     if e.notify_method == notify_type.empty:
                         e.notify_method = notificator.default_event.notify_method
@@ -190,10 +192,7 @@ class notificator:
     def __send_notify(self, e):
         if e.notify_method == notify_type.email:
             try:
-                #smtpObj = mailsender()
                 for addr in e.settings['toaddr']:
-                    #smtpObj.sendmessage(e.settings["fromaddr"], addr, e.settings['message'], e.settings['subject'], e.settings['signature'])
-
                     args = ''
 
                     if e.settings['fromaddr']:
@@ -209,13 +208,28 @@ class notificator:
                     
                     args = args + '--text \"' + e.settings['message'] + '\"'
 
-                    #os.system('python3 /etc/netping_email/sendtestmail.py --fromaddr ' + fromaddr + ' --toaddr ' + addr +' --subject ' + subject + ' --signature ' + signature + ' --text ' + e.settings['message'])
                     os.system('python3 /etc/netping_email/sendtestmail.py ' + args)
             except:
                 print("Can't send mail")
 
         else:
             print("Unknown notify type")
+
+    def __expression_convert(self, expression):
+        result = re.findall(r'%_(\S+)_%', expression)
+        result = set(result)
+
+        for r in result:
+            expression = expression.replace("%_" + r + "_%", "data['" + r + "']")
+
+        logic_operands = [ 'AND', 'OR', 'NOT' ]
+
+        for l in logic_operands:
+            expression = expression.replace(l, l.lower())
+
+        expression = expression.replace("=", "==")
+
+        return expression
 
     def __handle_event(self, event, data):
         now = datetime.now()
@@ -231,7 +245,11 @@ class notificator:
                 #check event
                 if e.ubus_event != notificator.event_type_map[data['event']]:
                     continue
-                #TODO check triggers
+                #check expression
+                expr = self.__expression_convert(e.expression)
+                expr_res = eval(expr)
+                if not expr_res:
+                    continue
                 #check time
                 for t in e.date_time:
                     if now >= t[0] and now <= t[1]:
@@ -239,12 +257,23 @@ class notificator:
 
         notificator.mutex.release()
 
+    def __reconfigure(self, event, data):
+        if data['config'] == 'notifyconf':
+            notificator.mutex.acquire()
+
+            del notificator.events[:]
+
+            notificator.mutex.release()
+
+            self.applyconfig()
+
     def __poll(self):
         notificator.mutex.acquire()
 
         ubus.connect()
 
         ubus.listen(("signal", self.__handle_event))
+        ubus.listen(("commit", self.__reconfigure))
 
         notificator.mutex.release()
 

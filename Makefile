@@ -4,7 +4,7 @@ TITLE="EPIC3 OWRT_Notifications"
 
 PKG_NAME="OWRT_Notifications"
 PKG_VERSION="Epic3.V1.S1"
-PKG_RELEASE=5
+PKG_RELEASE=6
 
 MODULE_FILES=notify.py
 MODULE_FILES_DIR=/usr/lib/python3.7/
