@@ -1,0 +1,101 @@
+<script type="text/javascript">
+//<![CDATA[
+L.require('ui').then(function(ui) {
+	L.require('dom').then(function(dom) {
+		var UITextareaHighlighted = ui.AbstractElement.extend(/** @lends LuCI.ui.Textarea.prototype */ {
+			__init__: function(value, options) {
+				this.value = value;
+				this.options = Object.assign({
+					optional: true,
+					wrap: false,
+					cols: null,
+					rows: null,
+
+				}, options);
+			},
+			__highlighter: {},
+
+			/** @override */
+			render: function() {
+				var style = !this.options.cols ? 'width:100%; background: none; height: 160px; line-height: 200%; padding: 0px; resize: none;' : null,
+				    frameEl = E('div', { class: 'hwt-backdrop' }, [
+							E('div', { class: 'hwt-highlights hwt-content' })
+				    ]),
+				    container = E('div', { 'id': this.options.id, 'style': style, 'class': 'hwt-container' }, [
+				    	frameEl
+					]);
+				    value = (this.value != null) ? String(this.value) : '';
+
+				container.appendChild(E('textarea', {
+					'id': this.options.id ? 'widget.' + this.options.id : null,
+					'name': this.options.name,
+					'class': 'cbi-input-textarea hwt-input',
+					'readonly': this.options.readonly ? '' : null,
+					'disabled': this.options.disabled ? '' : null,
+					'placeholder': this.options.placeholder,
+					'style': style,
+					'cols': this.options.cols,
+					'rows': this.options.rows,
+					'wrap': this.options.wrap ? '' : null
+				}, [ value ]));
+
+				if (this.options.monospace)
+					frameEl.firstElementChild.style.fontFamily = 'monospace';
+
+				setTimeout(this.highlight, 100, this, []);
+				
+				return this.bind(container);
+			},
+
+			highlight: function(self=this, w = []) {
+				var words = (w.length > 0) ? w : self.options.highlights || []
+				if($('.cbi-input-textarea')) {
+					if(!self.__highlighter.length) {
+						self.__highlighter = $('.cbi-input-textarea').highlightWithinTextarea({
+						    highlight: words // string, regexp, array, function, or custom object
+						});
+					} else {
+						$('.cbi-input-textarea').highlightWithinTextarea('update');	
+					}
+				} else {
+					console.log("div.cbi-input-textarea is not found. You should make TextAreaHighlighted.render() first.")
+				}
+			},
+
+			/** @private */
+			bind: function(container) {
+				var inputEl = container.children[1];
+		
+				this.node = container;
+
+				this.setUpdateEvents(inputEl, 'keyup', 'blur');
+				this.setChangeEvents(inputEl, 'change');
+
+				dom.bindClassInstance(container, this);
+
+				return container;
+			},
+
+			/** @override */
+			getValue: function() {
+				return this.node.children[1].value;
+			},
+
+			/** @override */
+			setValue: function(value) {
+				// replace \\n to \n because of Server API luci.util.serialize_json() escapes \n with \\n
+				var val = value.replace(/\\n/g,'\n'); 
+				this.node.children[1].value = val;
+				this.highlight();
+			},
+
+			getTextArea: function() {
+				return this.node.children[1]
+			}
+		});
+
+		ui["TextAreaHighlighted"] = UITextareaHighlighted;
+	});
+});
+//]]>
+</script>
