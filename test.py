@@ -7,6 +7,7 @@ def main():
     n = notificator()
 
     n.applyconfig()
+    print("Waiting...")
 
 if __name__ == "__main__":
     main()

@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 from threading import Thread
 from threading import Lock
+from journal import journal
 
 
 
@@ -21,6 +22,9 @@ class event_type(enum.Enum):
     temperature = 1
     userlogin = 2
     userlogout = 3
+    configchanged = 4
+    operation = 5
+    error = 6
 
 class event:
     name = ""
@@ -44,7 +48,10 @@ class notificator:
 
     event_type_map = { 'temperature' : event_type.temperature,
                         'userlogin' : event_type.userlogin,
-                        'userlogout' : event_type.userlogout }
+                        'userlogout' : event_type.userlogout,
+                        'configchanged' : event_type.configchanged,
+                        'operation' : event_type.operation,
+                        'error' : event_type.error }
 
     mutex = Lock()
 
@@ -178,14 +185,27 @@ class notificator:
                 ret['toaddr'] = []
 
         elif method == notify_type.syslog:
-            pass
+            try:
+                ret['message'] = dictionary['text']
+            except:
+                ret['message'] = ''
+
+            try:
+                ret['level'] = dictionary['loglevel']
+            except:
+                ret['level'] = ''
+
+            try:
+                ret['prefix'] = dictionary['logprefix']
+            except:
+                ret['prefix'] = ''
+
         elif method == notify_type.snmptrap:
             pass
         elif method == notify_type.sms:
             pass
         else:
             print('Bad notify type')
-
 
         return ret
 
@@ -212,6 +232,11 @@ class notificator:
             except:
                 print("Can't send mail")
 
+        elif e.notify_method == notify_type.syslog:
+            try:
+                journal.WriteLog(e.settings['prefix'], "DEBUG", e.settings['level'], e.settings['message'])
+            except:
+                print("Can't write log")
         else:
             print("Unknown notify type")
 
