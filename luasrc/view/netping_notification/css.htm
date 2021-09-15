@@ -1,0 +1,359 @@
+<style type="text/css">
+	@import url('/luci-static/resources/netping/fonts/fonts.css');
+	@import url('/luci-static/resources/netping/datepicker/datepicker.material.css');
+	@import url('/luci-static/resources/netping/jquery/jquery.highlight-within-textarea.css');
+	@import url('/luci-static/resources/netping/rslider/rslider.css');
+
+
+	.btn_spinner {
+		display: inline-block;
+		width: 0px;
+		height: 16px;
+		margin: 0 0px;
+	}
+
+	input[data-action="add"] {
+		width: 200px;
+		margin-bottom: 20px;
+		margin-top: 40px;
+	}
+
+	.cbi-button {
+		padding: 3px;
+		margin-left: 5px;
+		margin-right: 0px;
+
+	}
+
+
+	.td.cbi-section-actions {
+		text-align: left;
+	}
+
+.modal, #modal_overlay > .modal {
+	max-width: 1000px;
+}
+
+.message-template {
+	width: 70%;
+}
+
+#modal_overlay .modal > * {
+    flex-basis: 100%;
+}
+
+.cbi-dropdown:not(.btn):not(.cbi-button), .cbi-dynlist {
+    min-width: 50px;
+    max-width: 400px;
+    width: auto;
+    margin: 0 15px 5px 0px;
+}
+
+.alert-condition {
+	margin-top: 50px;	
+	margin-bottom: 30px;
+}
+
+
+.alert-condition input[type=text] {
+    width: 50px;
+    min-width: 50px;
+}
+
+.alert-condition table th {
+	font-size: 0.8em;
+	text-align: left;
+	padding: 8px 10px 5px 0px;
+}
+
+.alert-condition table td {
+	vertical-align: top;
+}
+.alert-condition table td .cbi-checkbox {
+	margin-top: 2px;
+}
+
+.alert-condition table td a {
+	padding-top: 3px;
+	display: block;
+}
+
+.alert-setting label {
+	font-weight: bolder;
+	font-size: 1.3em;
+}
+
+.alert-setting .cbi-value {
+	margin-left: 30px;
+}
+
+.alert-setting .cbi-value-field .cbi-dropdown:nth-child(2),
+.alert-setting .cbi-value-field .cbi-dropdown:nth-child(3) {
+	width: 130px;
+	margin: 0 15px 5px 0px;
+}
+
+.alert-setting .cbi-value-field .first-condition-row {
+	display: inline-block;
+	min-width: 50px;
+    width: 50px;
+    margin: 0 15px 0px 0px;
+}
+
+.alert-setting .cbi-value-field .first-condition-row:nth-child(5) {
+    margin-right: 0px;
+}
+
+.alert-setting .cbi-value-field .first-condition-row:nth-child(2),
+.alert-setting .cbi-value-field .first-condition-row:nth-child(3) {
+	width: 130px;
+}
+
+.alert-setting .cbi-value-field .first-condition-row:nth-child(4) div.cbi-dropdown,
+.alert-setting .cbi-value-field .first-condition-row:nth-child(1) div.cbi-dropdown
+	min-width: 50px;
+    width: 50px;
+}
+
+.alert-setting .cbi-value-field .first-condition-row:nth-child(1) div.cbi-dropdown {
+	visibility: hidden;
+}
+
+.alert-condition div.cbi-value-field div.first-condition-row:nth-child(1) div.cbi-dropdown {
+	width: 50px;
+	visibility: hidden;
+}
+
+.alert-condition div.cbi-value-field div.first-condition-row:nth-child(4) div.cbi-dropdown {
+	width: 50px;
+}
+
+.alert-setting .cbi-value-field {
+	margin-bottom: 5px;
+}
+
+.cbi-value-field {
+	width: 75%;
+}
+
+.cbi-dynlist {
+    height: auto;
+    min-height: 30px;
+    margin-right: 5px;
+    display: inline-flex;
+    flex-direction: unset;
+    max-width: 600px;
+}
+
+.cbi-dynlist .item {
+	margin-right: 10px;
+}
+
+.alert-setting .hours .cbi-dropdown {
+	width: 50px;
+	margin-right: 0px;
+}
+
+html body.lang_en.modal-overlay-active div#modal_overlay div.modal div.cbi-map.alert-setting div.cbi-map-section div.cbi-map-section-node div.cbi-value div.hours.cbi-value-field div.cbi-dropdown {
+	width: 50px;
+}
+
+a[name='tmpl-default'], a[name='tmpl-custom'] {
+	background-position-y: 2px;
+    background-size: 23%;
+    padding-left: 15px;
+    margin-left: 12px;
+	text-decoration: underline; 
+	float: right; 
+	display: none; 
+	cursor: pointer;
+	background-repeat: no-repeat;
+}
+
+/* content of NotesBanner */
+@supports (display: grid) {  
+  @media (min-width: 14em) {  
+    .rs-result-message dl {
+      display: grid;
+      grid-template-columns: auto 1fr; 
+    }
+    .rs-result-message dt {
+      min-width: 0; 
+    }
+    .rs-result-message dd {
+      margin: 0 0 0 1em;
+    }
+  }
+}
+
+.rs-result-message .logic {
+	font-weight: bolder;
+	font-size: 1.2em;
+	background-color: #ccc;
+	color: #828282;
+	padding: 1px 4px 1px 4px;
+	margin: 0 2px 0 2px;
+}
+
+.rs-result-message .comparision {
+	font-weight: bolder;
+	font-size: 1.2em;
+	background-color: #ccc;
+	color: #828282;
+	padding: 1px 4px 1px 4px;
+	margin: 0 2px 0 2px;
+}
+
+.rs-result-message .parenthesis {
+	font-weight: bolder;
+	font-size: 1.2em;
+	background-color: #ccc;
+	color: #828282;
+	padding: 1px 1px 1px 1px;
+	margin: 0 2px 0 2px;
+}
+
+.rs-container {
+	float: left;
+}
+
+.slider-container {
+	padding-bottom: 8em;
+}
+
+.rs-remove-the-slider {
+	text-decoration: underline;
+}
+
+.cbi-radio span {
+	font-size: 0.8em;
+	text-decoration: underline;
+	vertical-align: text-bottom;
+	cursor: pointer;
+}
+
+.cbi-value {
+	margin-bottom: 3em;
+}
+
+.cbi-value-title {
+	max-width: 200px;
+	width: auto;
+	font-weight: bold;
+}
+
+.cbi-value-title.memo-edit {
+	margin-top: 10px;
+}
+
+.cbi-value-field {
+	max-width: 800px;
+	width: auto;
+}
+
+.cbi-value-field.memo-edit div input {
+	border: 1px solid #333;
+	height: 45px;
+	background-color: #4C4C4C;
+	border-radius: 4px;
+	width: 100%;
+	font-family: 'Cuprum-VariableFont',Sans-Serif;
+	font-weight: 600;
+	font-size: 24px;
+	color: #FFFFFF;
+	padding-left: 20px;
+}
+
+.cbi-value-field table.cbi-2cols tr td {
+	padding-right: 15px;
+	padding-bottom: 10px;
+}
+
+.cbi-value-field table.cbi-2cols tr td input {
+	width: 300px;
+}
+
+.modal, 
+#modal_overlay > .modal {
+	padding: 2em 2em 4em;
+}
+
+.modal .cbi-map {
+	margin-top: 2.5em;
+}
+
+input, textarea, select, .cbi-dropdown ul {
+	padding-left: 10px;
+	padding-right: 10px;
+}
+
+div.table.modal-section-param {
+	width: 100%;
+}
+
+div.table.modal-section-param .tr .td {
+	padding: 6px 0px 6px 10px;
+}
+
+div.table.modal-section-param input {
+	height: 20px;
+	font-family:'Courier-Prime',Sans-Serif;
+	color: #333;
+	text-align: right;
+	font-weight: normal;
+}
+
+div.cbi-value-field-flex {
+	display: flex;
+	flex-flow: row wrap;
+}
+
+@media (max-width: 600px) {  
+	div.cbi-value-field-flex {
+		flex-flow: column wrap;
+		border: 5px solid blue;
+	}
+}
+
+div.cbi-value-field-1col {
+	padding-right: 20px;
+	width: 30%;
+}
+
+div.cbi-value-field-2col {
+	flex-grow: 1;
+	width: 70%;
+}
+
+.table.modal-section-param input[type="text"] + .cbi-button, 
+.table.modal-section-param input[type="password"] + .cbi-button, 
+.table.modal-section-param select + .cbi-button {
+	height: 20px;
+	line-height: 19px;
+}
+
+.table.modal-section-param .cbi-dropdown {
+	height: 20px;
+}
+
+.table.modal-section-param .cbi-dropdown ul {
+	overflow: unset;
+}
+
+div.cbi-value-field-1col .cbi-dropdown:not(.btn):not(.cbi-button), .cbi-dynlist {
+    width: 100%;
+}
+
+div.table.modal-section-param.more-params {
+	display: none;
+}
+
+div.adapter.empty {
+	display: none;
+}
+
+div.adapter.empty.active {
+	display: block;
+}
+
+</style>

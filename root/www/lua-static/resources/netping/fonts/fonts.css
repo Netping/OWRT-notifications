@@ -1,0 +1,39 @@
+
+@font-face {
+	font-family: 'Courier-Prime';
+	src: url('Courier-Prime.eot');
+	src: local('☺'), url('Courier-Prime.woff') format('woff'), url('Courier-Prime.ttf') format('truetype'), url('Courier-Prime.svg') format('svg');
+	font-weight: normal;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: 'Courier-Prime-Bold';
+	src: url('Courier-Prime-Bold.eot');
+	src: local('☺'), url('Courier-Prime-Bold.woff') format('woff'), url('Courier-Prime-Bold.ttf') format('truetype'), url('Courier-Prime-Bold.svg') format('svg');
+	font-weight: normal;
+	font-style: normal;
+}
+
+
+@font-face {
+  font-family: 'Cuprum-VariableFont';
+  src: url('Cuprum-VariableFont_wght.eot');
+  src: url('Cuprum-VariableFont_wght.woff2') format('woff2 supports variations'), 
+       url('Cuprum-VariableFont_wght.woff2') format('woff2-variations'),
+       url('Cuprum-VariableFont_wght.ttf') format('truetype'), 
+       url('Cuprum-VariableFont_wght.svg') format('svg');
+  font-weight: 100 1000;
+  font-stretch: 25% 151%;
+}
+
+@font-face {
+  font-family: 'Cuprum-Italic-VariableFont_wght';
+  src: url('Cuprum-Italic-VariableFont_wght.eot');
+  src: url('Cuprum-Italic-VariableFont_wght.woff') format('woff2 supports variations'), 
+       url('Cuprum-Italic-VariableFont_wght.woff') format('woff2-variations'), 
+       url('Cuprum-Italic-VariableFont_wght.ttf') format('truetype'), 
+       url('Cuprum-Italic-VariableFont_wght.svg') format('svg');
+  font-weight: 100 1000;
+  font-stretch: 25% 151%;
+}

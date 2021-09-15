@@ -1,0 +1,30 @@
+<script type="text/javascript">
+//<![CDATA[
+L.require("dom").then(function(dom)	{
+	L.require("ui").then(function(ui)	{
+		ui.addValidator: function(field, type, optional, vfunc /*, ... */) {
+		if (type == null)
+			return;
+
+		var events = this.varargs(arguments, 3);
+		if (events.length == 0)
+			events.push('blur', 'keyup');
+
+		try {
+			var cbiValidator = validation.create(field, type, optional, vfunc),
+			    validatorFn = cbiValidator.validate.bind(cbiValidator);
+
+			for (var i = 0; i < events.length; i++)
+				field.addEventListener(events[i], validatorFn);
+
+			validatorFn();
+
+			return validatorFn;
+		}
+		catch (e) { }
+	},
+		ui["TextFieldStyled"] = TextFieldStyled;
+	})
+})
+//]]>
+</script>
