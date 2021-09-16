@@ -25,6 +25,7 @@ class event_type(enum.Enum):
     configchanged = 4
     operation = 5
     error = 6
+    statechanged = 7
 
 class event:
     name = ""
@@ -44,7 +45,7 @@ class notificator:
     default_event = event()
 
     notify_type_map = { 'email' : notify_type.email,
-                        'syslog' : notify_type.syslog,
+                        'syslog' : notify_type.syslog,temperature
                         'snmptrap' : notify_type.snmptrap,
                         'sms' : notify_type.sms }
 
@@ -53,7 +54,8 @@ class notificator:
                         'userlogout' : event_type.userlogout,
                         'configchanged' : event_type.configchanged,
                         'operation' : event_type.operation,
-                        'error' : event_type.error }
+                        'error' : event_type.error,
+                        'statechanged' : event_type.statechanged }
 
     mutex = Lock()
 
