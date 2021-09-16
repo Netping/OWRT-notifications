@@ -35,6 +35,8 @@ class event:
     notify_method = notify_type.empty
     settings = {}
 
+module_name = "Notifications"
+
 class notificator:
     events = []
     pollThread = None
@@ -66,7 +68,7 @@ class notificator:
                 notificator.mutex.release()
                 return
 
-        print("Can't find event with name \"" + ename + "\"")
+        journal.WriteLog(module_name, "Normal", "error", "Can't find event with name \"" + ename + "\"")
 
     def applyconfig(self):
         notificator.mutex.acquire()
@@ -95,12 +97,14 @@ class notificator:
 
                     for element in notificator.events:
                         if element.name == e.name:
-                            print("Event with name " + e.name + " is exists!")
+                            #print("Event with name " + e.name + " is exists!")
+                            journal.WriteLog(module_name, "Normal", "error", "Event with name " + e.name + " is exists!")
                             exist = True
                             break
 
                     if e.name == '':
-                        print('Name can\'t be empty')
+                        #print('Name can\'t be empty')
+                        journal.WriteLog(module_name, "Normal", "error", "Name can't be empty")
                         continue
 
                     if exist:
@@ -140,7 +144,8 @@ class notificator:
 
             ubus.disconnect()
         except:
-            print("Can't connect to ubus")
+            #print("Can't connect to ubus")
+            journal.WriteLog(module_name, "Normal", "error", "Can't connect to ubus")
 
         notificator.mutex.release()
 
@@ -205,7 +210,8 @@ class notificator:
         elif method == notify_type.sms:
             pass
         else:
-            print('Bad notify type')
+            #print('Bad notify type')
+            journal.WriteLog(module_name, "Normal", "error", "Bad notify type")
 
         return ret
 
@@ -230,15 +236,18 @@ class notificator:
 
                     os.system('python3 /etc/netping_email/sendtestmail.py ' + args)
             except:
-                print("Can't send mail")
+                #print("Can't send mail")
+                journal.WriteLog(module_name, "Normal", "error", "Can't send mail")
 
         elif e.notify_method == notify_type.syslog:
             try:
-                journal.WriteLog(e.settings['prefix'], "DEBUG", e.settings['level'], e.settings['message'])
+                journal.WriteLog(e.settings['prefix'], "Normal", e.settings['level'], e.settings['message'])
             except:
-                print("Can't write log")
+                #print("Can't write log")
+                journal.WriteLog(module_name, "Normal", "error", "Can't write log")
         else:
-            print("Unknown notify type")
+            #print("Unknown notify type")
+            journal.WriteLog(module_name, "Normal", "error", "Unknown notify type")
 
     def __expression_convert(self, expression):
         result = re.findall(r'%_(\S+)_%', expression)
@@ -289,6 +298,8 @@ class notificator:
             del notificator.events[:]
 
             notificator.mutex.release()
+
+            journal.WriteLog(module_name, "Normal", "notice", "Config changed!")
 
             self.applyconfig()
 
