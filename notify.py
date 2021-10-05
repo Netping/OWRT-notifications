@@ -45,7 +45,7 @@ class notificator:
     default_event = event()
 
     notify_type_map = { 'email' : notify_type.email,
-                        'syslog' : notify_type.syslog,temperature
+                        'syslog' : notify_type.syslog,
                         'snmptrap' : notify_type.snmptrap,
                         'sms' : notify_type.sms }
 
