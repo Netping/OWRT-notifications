@@ -236,7 +236,7 @@ class notificator:
                     
                     args = args + '--text \"' + e.settings['message'] + '\"'
 
-                    os.system('python3 /etc/netping_email/sendtestmail.py ' + args)
+                    os.system('netping email sendmail ' + args)
             except:
                 #print("Can't send mail")
                 journal.WriteLog(module_name, "Normal", "error", "Can't send mail")
