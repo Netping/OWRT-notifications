@@ -59,9 +59,6 @@ class notificator:
 
     mutex = Lock()
 
-    #def __init__(self):
-    #    self.applyconfig()
-
     def unregisterevent(self, ename):
         for e in events:
             if e.name == ename:
@@ -89,8 +86,6 @@ class notificator:
                     except:
                         notificator.default_event.expression = ''
                     notificator.default_event.notify_method = notificator.notify_type_map[confdict['method']]
-                    #TODO datetime table for event
-                    #TODO settings table for event
 
                 if confdict['.type'] == 'notify' and confdict['.name'] != 'prototype':
                     exist = False
@@ -99,13 +94,11 @@ class notificator:
 
                     for element in notificator.events:
                         if element.name == e.name:
-                            #print("Event with name " + e.name + " is exists!")
                             journal.WriteLog(module_name, "Normal", "error", "Event with name " + e.name + " is exists!")
                             exist = True
                             break
 
                     if e.name == '':
-                        #print('Name can\'t be empty')
                         journal.WriteLog(module_name, "Normal", "error", "Name can't be empty")
                         continue
 
@@ -146,7 +139,6 @@ class notificator:
 
             ubus.disconnect()
         except:
-            #print("Can't connect to ubus")
             journal.WriteLog(module_name, "Normal", "error", "Can't connect to ubus")
 
         notificator.mutex.release()
@@ -212,7 +204,6 @@ class notificator:
         elif method == notify_type.sms:
             pass
         else:
-            #print('Bad notify type')
             journal.WriteLog(module_name, "Normal", "error", "Bad notify type")
 
         return ret
@@ -238,17 +229,14 @@ class notificator:
 
                     os.system('netping email sendmail ' + args)
             except:
-                #print("Can't send mail")
                 journal.WriteLog(module_name, "Normal", "error", "Can't send mail")
 
         elif e.notify_method == notify_type.syslog:
             try:
                 journal.WriteLog(e.settings['prefix'], "Normal", e.settings['level'], e.settings['message'])
             except:
-                #print("Can't write log")
                 journal.WriteLog(module_name, "Normal", "error", "Can't write log")
         else:
-            #print("Unknown notify type")
             journal.WriteLog(module_name, "Normal", "error", "Unknown notify type")
 
     def __expression_convert(self, expression):
