@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import enum
 import ubus
 import os
@@ -38,271 +39,269 @@ class event:
 
 module_name = "Notifications"
 
-class notificator:
-    events = []
-    pollThread = None
-    confName = 'notifyconf'
-    default_event = event()
+events = []
+pollThread = None
+confName = 'notifyconf'
+default_event = event()
 
-    notify_type_map = { 'email' : notify_type.email,
-                        'syslog' : notify_type.syslog,
-                        'snmptrap' : notify_type.snmptrap,
-                        'sms' : notify_type.sms }
+notify_type_map = { 'email' : notify_type.email,
+                    'syslog' : notify_type.syslog,
+                    'snmptrap' : notify_type.snmptrap,
+                    'sms' : notify_type.sms }
 
-    event_type_map = { 'temperature' : event_type.temperature,
-                        'userlogin' : event_type.userlogin,
-                        'userlogout' : event_type.userlogout,
-                        'configchanged' : event_type.configchanged,
-                        'operation' : event_type.operation,
-                        'error' : event_type.error,
-                        'statechanged' : event_type.statechanged }
+event_type_map = { 'temperature' : event_type.temperature,
+                    'userlogin' : event_type.userlogin,
+                    'userlogout' : event_type.userlogout,
+                    'configchanged' : event_type.configchanged,
+                    'operation' : event_type.operation,
+                    'error' : event_type.error,
+                    'statechanged' : event_type.statechanged }
 
-    mutex = Lock()
+mutex = Lock()
 
-    def unregisterevent(self, ename):
-        for e in events:
-            if e.name == ename:
-                notificator.mutex.acquire()
-                events.remove(e)
-                notificator.mutex.release()
-                return
+def handle_event(event, data):
+    now = datetime.now()
 
-        journal.WriteLog(module_name, "Normal", "error", "Can't find event with name \"" + ename + "\"")
+    mutex.acquire()
 
-    def applyconfig(self):
-        notificator.mutex.acquire()
+    if not events:
+        mutex.release()
+        return
+
+    for e in events:
+        if e.active:
+            #check event
+            if e.ubus_event != event_type_map[data['event']]:
+                continue
+            #check expression
+            expr = expression_convert(e.expression)
+            expr_res = eval(expr)
+            if not expr_res:
+                continue
+            #check time
+            for t in e.date_time:
+                if now >= t[0] and now <= t[1]:
+                    send_notify(e)
+
+    mutex.release()
+
+def reconfigure(event, data):
+    if data['config'] == confName:
+        mutex.acquire()
+
+        del events[:]
+
+        mutex.release()
+
+        journal.WriteLog(module_name, "Normal", "notice", "Config changed!")
+
+        applyconfig()
+
+def poll():
+    mutex.acquire()
+
+    ubus.connect()
+
+    ubus.listen(("signal", handle_event))
+    ubus.listen(("commit", reconfigure))
+
+    mutex.release()
+
+    ubus.loop()
+
+    ubus.disconnect()
+
+def parse_timetable(value):
+    ret = []
+
+    records = value.split(',')
+    for r in records:
+        t = r.split('-')
+        new = [ datetime.strptime(t[0], "%d/%m/%Y %H:%M:%S"), datetime.strptime(t[1], "%d/%m/%Y %H:%M:%S") ]
+        ret.append(new)
+
+    return ret
+
+def make_settings(method, dictionary):
+    ret = {}
+
+    if method == notify_type.email:
+        try:
+            ret['message'] = dictionary['text']
+        except:
+            ret['message'] = ''
 
         try:
-            ubus.connect()
-
-            confvalues = ubus.call("uci", "get", {"config": notificator.confName})
-            for confdict in list(confvalues[0]['values'].values()):
-                if confdict['.type'] == 'notify' and confdict['.name'] == 'prototype':
-                    notificator.default_event.name = confdict['name']
-                    notificator.default_event.active = bool(int(confdict['state']))
-                    notificator.default_event.ubus_event = notificator.event_type_map[confdict['event']]
-                    try:
-                        notificator.default_event.expression = confdict['expression']
-                    except:
-                        notificator.default_event.expression = ''
-                    notificator.default_event.notify_method = notificator.notify_type_map[confdict['method']]
-
-                if confdict['.type'] == 'notify' and confdict['.name'] != 'prototype':
-                    exist = False
-                    e = event()
-                    e.name = confdict['name']
-
-                    for element in notificator.events:
-                        if element.name == e.name:
-                            journal.WriteLog(module_name, "Normal", "error", "Event with name " + e.name + " is exists!")
-                            exist = True
-                            break
-
-                    if e.name == '':
-                        journal.WriteLog(module_name, "Normal", "error", "Name can't be empty")
-                        continue
-
-                    if exist:
-                        continue
-
-                    try:
-                        e.active = bool(int(confdict['state']))
-                    except:
-                        e.active = notificator.default_event.active
-                    e.ubus_event = notificator.event_type_map[confdict['event']]
-                    e.expression = confdict['expression']
-
-                    e.notify_method = notificator.notify_type_map[confdict['method']]
-                    e.date_time = notificator.__parse_timetable(confdict['timetable'])
-                    e.settings = notificator.__make_settings(e.notify_method, confdict)
-
-                    if e.ubus_event == event_type.empty:
-                        e.ubus_event = notificator.default_event.ubus_event
-
-                    if e.expression == '':
-                        e.expression = notificator.default_event.expression
-
-                    if e.notify_method == notify_type.empty:
-                        e.notify_method = notificator.default_event.notify_method
-
-                    if not e.date_time:
-                        e.date_time = notificator.default_event.date_time
-
-                    if not e.settings:
-                        e.settings = notificator.default_event.settings
-
-                    notificator.events.append(e)
-
-                    if not notificator.pollThread:
-                        notificator.pollThread = Thread(target=self.__poll, args=())
-                        notificator.pollThread.start()
-
-            ubus.disconnect()
+            ret['fromaddr'] = dictionary['from']
         except:
-            journal.WriteLog(module_name, "Normal", "error", "Can't connect to ubus")
+            ret['fromaddr'] = ''
 
-        notificator.mutex.release()
+        try:
+            ret['subject'] = dictionary['subject']
+        except:
+            ret['subject'] = ''
 
-    def __parse_timetable(value):
-        ret = []
+        try:
+            ret['signature'] = dictionary['signature']
+        except:
+            ret['signature'] = ''
 
-        records = value.split(',')
-        for r in records:
-            t = r.split('-')
-            new = [ datetime.strptime(t[0], "%d/%m/%Y %H:%M:%S"), datetime.strptime(t[1], "%d/%m/%Y %H:%M:%S") ]
-            ret.append(new)
+        try:
+            ret['toaddr'] = [ a for a in dictionary['sendto'].split(',')]
+        except:
+            ret['toaddr'] = []
 
-        return ret
+    elif method == notify_type.syslog:
+        try:
+            ret['message'] = dictionary['text']
+        except:
+            ret['message'] = ''
 
-    def __make_settings(method, dictionary):
-        ret = {}
+        try:
+            ret['level'] = dictionary['loglevel']
+        except:
+            ret['level'] = ''
 
-        if method == notify_type.email:
-            try:
-                ret['message'] = dictionary['text']
-            except:
-                ret['message'] = ''
+        try:
+            ret['prefix'] = dictionary['logprefix']
+        except:
+            ret['prefix'] = ''
 
-            try:
-                ret['fromaddr'] = dictionary['from']
-            except:
-                ret['fromaddr'] = ''
+    elif method == notify_type.snmptrap:
+        pass
+    elif method == notify_type.sms:
+        pass
+    else:
+        journal.WriteLog(module_name, "Normal", "error", "Bad notify type")
 
-            try:
-                ret['subject'] = dictionary['subject']
-            except:
-                ret['subject'] = ''
+    return ret
 
-            try:
-                ret['signature'] = dictionary['signature']
-            except:
-                ret['signature'] = ''
+def applyconfig():
+    global pollThread
 
-            try:
-                ret['toaddr'] = [ a for a in dictionary['sendto'].split(',')]
-            except:
-                ret['toaddr'] = []
+    mutex.acquire()
 
-        elif method == notify_type.syslog:
-            try:
-                ret['message'] = dictionary['text']
-            except:
-                ret['message'] = ''
-
-            try:
-                ret['level'] = dictionary['loglevel']
-            except:
-                ret['level'] = ''
-
-            try:
-                ret['prefix'] = dictionary['logprefix']
-            except:
-                ret['prefix'] = ''
-
-        elif method == notify_type.snmptrap:
-            pass
-        elif method == notify_type.sms:
-            pass
-        else:
-            journal.WriteLog(module_name, "Normal", "error", "Bad notify type")
-
-        return ret
-
-    def __send_notify(self, e):
-        if e.notify_method == notify_type.email:
-            try:
-                for addr in e.settings['toaddr']:
-                    args = ''
-
-                    if e.settings['fromaddr']:
-                        args = args + '--fromaddr \"' + e.settings['fromaddr'] + '\" '
-
-                    args = args + '--toaddr \"' + addr + '\" '
-
-                    if e.settings['subject']:
-                        args = args + '--subject \"' + e.settings['subject'] + '\" '
-
-                    if e.settings['signature']:
-                        args = args + '--signature \"' + e.settings['signature'] + '\" '
-                    
-                    args = args + '--text \"' + e.settings['message'] + '\"'
-
-                    os.system('netping email sendmail ' + args)
-            except:
-                journal.WriteLog(module_name, "Normal", "error", "Can't send mail")
-
-        elif e.notify_method == notify_type.syslog:
-            try:
-                journal.WriteLog(e.settings['prefix'], "Normal", e.settings['level'], e.settings['message'])
-            except:
-                journal.WriteLog(module_name, "Normal", "error", "Can't write log")
-        else:
-            journal.WriteLog(module_name, "Normal", "error", "Unknown notify type")
-
-    def __expression_convert(self, expression):
-        result = re.findall(r'%_(\S+)_%', expression)
-        result = set(result)
-
-        for r in result:
-            expression = expression.replace("%_" + r + "_%", "data['" + r + "']")
-
-        logic_operands = [ 'AND', 'OR', 'NOT' ]
-
-        for l in logic_operands:
-            expression = expression.replace(l, l.lower())
-
-        expression = expression.replace("=", "==")
-
-        return expression
-
-    def __handle_event(self, event, data):
-        now = datetime.now()
-
-        notificator.mutex.acquire()
-
-        if not notificator.events:
-            notificator.mutex.release()
-            return
-
-        for e in notificator.events:
-            if e.active:
-                #check event
-                if e.ubus_event != notificator.event_type_map[data['event']]:
-                    continue
-                #check expression
-                expr = self.__expression_convert(e.expression)
-                expr_res = eval(expr)
-                if not expr_res:
-                    continue
-                #check time
-                for t in e.date_time:
-                    if now >= t[0] and now <= t[1]:
-                        self.__send_notify(e)
-
-        notificator.mutex.release()
-
-    def __reconfigure(self, event, data):
-        if data['config'] == 'notifyconf':
-            notificator.mutex.acquire()
-
-            del notificator.events[:]
-
-            notificator.mutex.release()
-
-            journal.WriteLog(module_name, "Normal", "notice", "Config changed!")
-
-            self.applyconfig()
-
-    def __poll(self):
-        notificator.mutex.acquire()
-
+    try:
         ubus.connect()
 
-        ubus.listen(("signal", self.__handle_event))
-        ubus.listen(("commit", self.__reconfigure))
+        confvalues = ubus.call("uci", "get", {"config": confName})
+        for confdict in list(confvalues[0]['values'].values()):
+            if confdict['.type'] == 'notify' and confdict['.name'] == 'prototype':
+                default_event.name = confdict['name']
+                default_event.active = bool(int(confdict['state']))
+                default_event.ubus_event = event_type_map[confdict['event']]
+                try:
+                    default_event.expression = confdict['expression']
+                except:
+                    default_event.expression = ''
+                default_event.notify_method = notify_type_map[confdict['method']]
 
-        notificator.mutex.release()
+            if confdict['.type'] == 'notify' and confdict['.name'] != 'prototype':
+                exist = False
+                e = event()
+                e.name = confdict['name']
 
-        ubus.loop()
+                for element in events:
+                    if element.name == e.name:
+                        journal.WriteLog(module_name, "Normal", "error", "Event with name " + e.name + " is exists!")
+                        exist = True
+                        break
+
+                if e.name == '':
+                    journal.WriteLog(module_name, "Normal", "error", "Name can't be empty")
+                    continue
+
+                if exist:
+                    continue
+
+                try:
+                    e.active = bool(int(confdict['state']))
+                except:
+                    e.active = default_event.active
+
+                e.ubus_event = event_type_map[confdict['event']]
+                e.expression = confdict['expression']
+
+                e.notify_method = notify_type_map[confdict['method']]
+                e.date_time = parse_timetable(confdict['timetable'])
+                e.settings = make_settings(e.notify_method, confdict)
+
+                if e.ubus_event == event_type.empty:
+                    e.ubus_event = default_event.ubus_event
+
+                if e.expression == '':
+                    e.expression = default_event.expression
+
+                if e.notify_method == notify_type.empty:
+                    e.notify_method = default_event.notify_method
+
+                if not e.date_time:
+                    e.date_time = default_event.date_time
+
+                if not e.settings:
+                    e.settings = default_event.settings
+
+                events.append(e)
+
+                if not pollThread:
+                    pollThread = Thread(target=poll, args=())
+                    pollThread.start()
 
         ubus.disconnect()
+    except:
+        journal.WriteLog(module_name, "Normal", "error", "Can't connect to ubus")
+
+    mutex.release()
+
+def send_notify(e):
+    if e.notify_method == notify_type.email:
+        try:
+            for addr in e.settings['toaddr']:
+                args = ''
+
+                if e.settings['fromaddr']:
+                    args = args + '--fromaddr \"' + e.settings['fromaddr'] + '\" '
+
+                args = args + '--toaddr \"' + addr + '\" '
+
+                if e.settings['subject']:
+                    args = args + '--subject \"' + e.settings['subject'] + '\" '
+
+                if e.settings['signature']:
+                    args = args + '--signature \"' + e.settings['signature'] + '\" '
+                    
+                args = args + '--text \"' + e.settings['message'] + '\"'
+
+                os.system('netping email sendmail ' + args)
+        except:
+            journal.WriteLog(module_name, "Normal", "error", "Can't send mail")
+
+    elif e.notify_method == notify_type.syslog:
+        try:
+            journal.WriteLog(e.settings['prefix'], "Normal", e.settings['level'], e.settings['message'])
+        except:
+            journal.WriteLog(module_name, "Normal", "error", "Can't write log")
+    else:
+        journal.WriteLog(module_name, "Normal", "error", "Unknown notify type")
+
+def expression_convert(expression):
+    result = re.findall(r'%_(\S+)_%', expression)
+    result = set(result)
+
+    for r in result:
+        expression = expression.replace("%_" + r + "_%", "data['" + r + "']")
+
+    logic_operands = [ 'AND', 'OR', 'NOT' ]
+
+    for l in logic_operands:
+        expression = expression.replace(l, l.lower())
+
+    expression = expression.replace("=", "==")
+
+    return expression
+
+def main():
+    applyconfig()
+
+if __name__ == "__main__":
+    main()
