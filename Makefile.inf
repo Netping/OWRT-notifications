@@ -1,9 +1,9 @@
 SECTION="NetPing modules"
 CATEGORY="Base"
-TITLE="EPIC3 OWRT_Notifications"
+TITLE="OWRT-Notifications"
 
-PKG_NAME="OWRT_Notifications"
-PKG_VERSION="Epic3.V1.S1"
+PKG_NAME="OWRT-notifications"
+PKG_VERSION="0.1"
 PKG_RELEASE=11
 
 MODULE_FILES=notify.py
