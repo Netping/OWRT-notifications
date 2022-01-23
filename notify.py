@@ -257,24 +257,9 @@ def send_notify(e):
     if e.notify_method == notify_type.email:
         try:
             for addr in e.settings['toaddr']:
-                args = ''
-
-                if e.settings['fromaddr']:
-                    args = args + '--fromaddr \"' + e.settings['fromaddr'] + '\" '
-
-                args = args + '--toaddr \"' + addr + '\" '
-
-                if e.settings['subject']:
-                    args = args + '--subject \"' + e.settings['subject'] + '\" '
-
-                if e.settings['signature']:
-                    args = args + '--signature \"' + e.settings['signature'] + '\" '
-                    
-                args = args + '--text \"' + e.settings['message'] + '\"'
-
-                os.system('netping email sendmail ' + args)
-        except:
-            journal.WriteLog(module_name, "Normal", "error", "Can't send mail")
+                ubus.call("owrt_email", "send_mail", { "fromaddr":e.settings['fromaddr'], "toaddr":addr, "text":e.settings['message'], "subject":e.settings['subject'] ,"signature":e.settings['signature'], "ubus_rpc_session":"1" })
+        except Exception as ex:
+            journal.WriteLog(module_name, "Normal", "error", "Can't send mail" + str(ex))
 
     elif e.notify_method == notify_type.syslog:
         try:
