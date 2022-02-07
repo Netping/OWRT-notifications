@@ -4,7 +4,7 @@ TITLE="OWRT-notifications"
 
 PKG_NAME="OWRT-notifications"
 PKG_VERSION="Epic3.V1.S1"
-PKG_RELEASE=12
+PKG_RELEASE=13
 PKG_DEPENDS=
 
 MODULE_FILES=notify.py Configname
@@ -12,6 +12,8 @@ MODULE_FILES_DIR=/etc/netping_notifications/
 
 CONF_FILE=notifyconf
 CONF_DIR=/etc/config/
+
+AUTORUN_FILES=owrt_notifications_autorun
 
 INSTALL_DIR=
 
@@ -28,16 +30,23 @@ configure:
 install:
 ifneq ($(INSTALL_DIR),)
 	mkdir -p $(INSTALL_DIR)$(CONF_DIR)
+	mkdir -p $(INSTALL_DIR)/etc/init.d
+	mkdir -p $(INSTALL_DIR)/etc/rc.d
 endif
 	cp $(CONF_FILE) $(INSTALL_DIR)/$(CONF_DIR)
 	mkdir -p $(INSTALL_DIR)$(MODULE_FILES_DIR)
 	mkdir -p $(INSTALL_DIR)$(MODULE_FILES_DIR)/commands #for owrt-cli
 	for f in $(MODULE_FILES); do cp $${f} $(INSTALL_DIR)/$(MODULE_FILES_DIR); done
+	for f in $(AUTORUN_FILES); do cp $${f} $(INSTALL_DIR)/etc/init.d; done
+	mv $(INSTALL_DIR)/etc/init.d/owrt_notifications_autorun $(INSTALL_DIR)/etc/init.d/owrt_notifications
+	ln -s ../init.d/owrt_notifications $(INSTALL_DIR)/etc/rc.d/S90OWRT-Notifications
 
 clean:
 ifeq ($(INSTALL_DIR),)
 	rm -f $(CONF_DIR)$(CONF_FILE)
 	rm -rf $(MODULE_FILES_DIR)
+	rm -f /etc/init.d/owrt_notifications
+	rm -f /etc/rc.d/S90OWRT-Notifications
 else
 	rm -rf $(INSTALL_DIR)
 endif
