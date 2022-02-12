@@ -41,6 +41,7 @@ module_name = "Notifications"
 
 events = []
 pollThread = None
+ubusConnected = False
 confName = 'notifyconf'
 default_event = event()
 
@@ -98,9 +99,13 @@ def reconfigure(event, data):
         applyconfig()
 
 def poll():
+    global ubusConnected
+
     mutex.acquire()
 
     ubus.connect()
+
+    ubusConnected = True
 
     ubus.listen(("signal", handle_event))
     ubus.listen(("commit", reconfigure))
@@ -110,6 +115,8 @@ def poll():
     ubus.loop()
 
     ubus.disconnect()
+
+    ubusConnected = False
 
 def parse_timetable(value):
     ret = []
@@ -178,11 +185,13 @@ def make_settings(method, dictionary):
 
 def applyconfig():
     global pollThread
+    global ubusConnected
 
     mutex.acquire()
 
     try:
-        ubus.connect()
+        if not ubusConnected:
+            ubus.connect()
 
         confvalues = ubus.call("uci", "get", {"config": confName})
         for confdict in list(confvalues[0]['values'].values()):
@@ -243,13 +252,15 @@ def applyconfig():
 
                 events.append(e)
 
-                if not pollThread:
-                    pollThread = Thread(target=poll, args=())
-                    pollThread.start()
+        if not ubusConnected:
+            ubus.disconnect()
 
-        ubus.disconnect()
-    except:
-        journal.WriteLog(module_name, "Normal", "error", "Can't connect to ubus")
+        if not pollThread:
+            pollThread = Thread(target=poll, args=())
+            pollThread.start()
+
+    except Exception as ex:
+        journal.WriteLog(module_name, "Normal", "error", "Can't connect to ubus " + str(ex))
 
     mutex.release()
 
