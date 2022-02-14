@@ -4,8 +4,8 @@ TITLE="OWRT-notifications"
 
 PKG_NAME="OWRT-notifications"
 PKG_VERSION="Epic3.V1.S1"
-PKG_RELEASE=14
-PKG_DEPENDS=
+PKG_RELEASE=15
+PKG_DEPENDS=OWRT-log
 
 MODULE_FILES=notify.py Configname
 MODULE_FILES_DIR=/etc/netping/notifications/
