@@ -3,8 +3,8 @@ CATEGORY="Base"
 TITLE="OWRT-notifications"
 
 PKG_NAME="OWRT-notifications"
-PKG_VERSION="Epic3.V1.S1"
-PKG_RELEASE=15
+PKG_VERSION="0.1"
+PKG_RELEASE=16
 PKG_DEPENDS=OWRT-log
 
 MODULE_FILES=notify.py Configname
