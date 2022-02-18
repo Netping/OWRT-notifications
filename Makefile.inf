@@ -4,7 +4,7 @@ TITLE="OWRT-notifications"
 
 PKG_NAME="OWRT-notifications"
 PKG_VERSION="0.1"
-PKG_RELEASE=16
+PKG_RELEASE=17
 PKG_DEPENDS=OWRT-log
 
 MODULE_FILES=notify.py Configname
@@ -12,6 +12,8 @@ MODULE_FILES_DIR=/etc/netping/notifications/
 
 CONF_FILE=notifyconf
 CONF_DIR=/etc/config/
+
+TESTS_SRC_DIR=Tests
 
 AUTORUN_FILES=owrt_notifications_autorun
 
@@ -40,6 +42,7 @@ endif
 	mkdir -p $(INSTALL_DIR)$(MODULE_FILES_DIR)
 	mkdir -p $(INSTALL_DIR)$(MODULE_FILES_DIR)/commands #for owrt-cli
 	for f in $(MODULE_FILES); do cp $${f} $(INSTALL_DIR)/$(MODULE_FILES_DIR); done
+	cp -r $(TESTS_SRC_DIR) $(INSTALL_DIR)$(MODULE_FILES_DIR)
 	for f in $(AUTORUN_FILES); do cp $${f} $(INSTALL_DIR)/etc/init.d; done
 	mv $(INSTALL_DIR)/etc/init.d/owrt_notifications_autorun $(INSTALL_DIR)/etc/init.d/owrt_notifications
 	ln -s ../init.d/owrt_notifications $(INSTALL_DIR)/etc/rc.d/S90OWRT-Notifications
