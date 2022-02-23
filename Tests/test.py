@@ -31,18 +31,21 @@ def test_conf_valid():
         for confdict in list(confvalues[0]['values'].values()):
             #check globals
             if confdict['.type'] == 'globals' and confdict['.name'] == 'globals':
-                assert confdict['event'] == ['temperature.Температура', 'userlogin.Вход пользователя', 'userlogout.Выход пользователя']
+                assert confdict['event'] == [
+                    'temperature.Температура', 'userlogin.Вход пользователя', 'userlogout.Выход пользователя',
+                    'configchanged.Конфигурация изменена', 'operation.Операция', 'error.Ошибка', 'statechanged.Состояние изменено'
+                ]
                 assert confdict['method'] == ['email.Почта', 'syslog.Журнал', 'snmptrap.Отправить snmp сообщение', 'sms.Сообщение SMS']
             #check sensor_prototype
             if confdict['.type'] == 'notify' and confdict['.name'] == 'prototype':
                 assert confdict['name'] == 'Notify'
                 assert confdict['state'] == '0'
                 assert confdict['event'] == 'temperature'
-                assert confdict['expression'] == '0'
+                assert confdict['expression'] == '-'
                 assert confdict['method'] == 'email'
                 assert confdict['text'] == 'Message text here'
-                assert confdict['sendto'] == 'addr1,addr2'
-                assert confdict['timetable'] == 'datetime1-datetime2,datetime3-datetime4'
+                assert confdict['sendto'] == 'addr1'
+                assert confdict['timetable'] == 'datetime1-datetime2'
     except:
         assert ret
 
