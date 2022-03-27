@@ -175,7 +175,16 @@ def make_settings(method, dictionary):
             ret['prefix'] = ''
 
     elif method == notify_type.snmptrap:
-        pass
+        try:
+            ret['toaddr'] = [ a for a in dictionary['sendto'].split(',')]
+        except:
+            ret['toaddr'] = []
+
+        try:
+            ret['port'] = dictionary['port']
+        except:
+            ret['port'] = ''
+
     elif method == notify_type.sms:
         pass
     else:
@@ -277,6 +286,15 @@ def send_notify(e):
             journal.WriteLog(e.settings['prefix'], "Normal", e.settings['level'], e.settings['message'])
         except:
             journal.WriteLog(module_name, "Normal", "error", "Can't write log")
+
+    elif e.notify_method == notify_type.snmptrap:
+        try:
+            #send snmptrap via system call
+            for addr in e.settings['toaddr']:
+                os.system('snmptrap -c public -v 2c ' + addr + ':' + e.settings['port'] + ' "" 1.3.6.1.4.1.8072.9999.9999 1 s "OWRT-Notification trap"')
+        except:
+            journal.WriteLog(module_name, "Normal", "error", "Can't send snmptrap")
+
     else:
         journal.WriteLog(module_name, "Normal", "error", "Unknown notify type")
 
