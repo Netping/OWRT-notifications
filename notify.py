@@ -3,6 +3,8 @@ import enum
 import ubus
 import os
 import re
+import requests
+import json
 from datetime import datetime
 from threading import Thread
 from threading import Lock
@@ -17,6 +19,7 @@ class notify_type(enum.Enum):
     syslog = 2
     snmptrap = 3
     sms = 4
+    webhook = 5
 
 class event_type(enum.Enum):
     empty = 0
@@ -48,7 +51,8 @@ default_event = event()
 notify_type_map = { 'email' : notify_type.email,
                     'syslog' : notify_type.syslog,
                     'snmptrap' : notify_type.snmptrap,
-                    'sms' : notify_type.sms }
+                    'sms' : notify_type.sms,
+                    'webhook' : notify_type.webhook }
 
 event_type_map = { 'temperature' : event_type.temperature,
                     'userlogin' : event_type.userlogin,
@@ -82,7 +86,7 @@ def handle_event(event, data):
             #check time
             for t in e.date_time:
                 if now >= t[0] and now <= t[1]:
-                    send_notify(e)
+                    send_notify(e, data)
 
     mutex.release()
 
@@ -185,8 +189,25 @@ def make_settings(method, dictionary):
         except:
             ret['port'] = ''
 
+        try:
+            ret['oid'] = dictionary['oid']
+        except:
+            ret['oid'] = ''
+
     elif method == notify_type.sms:
         pass
+
+    elif method == notify_type.webhook:
+        try:
+            ret['toaddr'] = [ a for a in dictionary['sendto'].split(',')]
+        except:
+            ret['toaddr'] = []
+
+        try:
+            ret['request'] = dictionary['request']
+        except:
+            ret['request'] = 'WEBget'
+
     else:
         journal.WriteLog(module_name, "Normal", "error", "Bad notify type")
 
@@ -273,28 +294,39 @@ def applyconfig():
 
     mutex.release()
 
-def send_notify(e):
+def send_notify(e, data):
     if e.notify_method == notify_type.email:
         try:
             for addr in e.settings['toaddr']:
                 ubus.call("owrt_email", "send_mail", { "fromaddr":e.settings['fromaddr'], "toaddr":addr, "text":e.settings['message'], "subject":e.settings['subject'] ,"signature":e.settings['signature'], "ubus_rpc_session":"1" })
         except Exception as ex:
-            journal.WriteLog(module_name, "Normal", "error", "Can't send mail" + str(ex))
+            journal.WriteLog(module_name, "Normal", "error", "Can't send mail " + str(ex) + ". Notification: " + e.name)
 
     elif e.notify_method == notify_type.syslog:
         try:
             journal.WriteLog(e.settings['prefix'], "Normal", e.settings['level'], e.settings['message'])
         except:
-            journal.WriteLog(module_name, "Normal", "error", "Can't write log")
+            journal.WriteLog(module_name, "Normal", "error", "Can't write log. Notification: " + e.name)
 
     elif e.notify_method == notify_type.snmptrap:
         try:
             #send snmptrap via system call
             for addr in e.settings['toaddr']:
-                os.system('snmptrap -c public -v 2c ' + addr + ':' + e.settings['port'] + ' "" 1.3.6.1.4.1.8072.9999.9999 1 s "OWRT-Notification trap"')
+                os.system('snmptrap -c public -v 2c ' + addr + ':' + e.settings['port'] + ' "" ' + e.settings['oid'] + ' 1 s "OWRT-Notification trap"')
         except:
-            journal.WriteLog(module_name, "Normal", "error", "Can't send snmptrap")
+            journal.WriteLog(module_name, "Normal", "error", "Can't send snmptrap. Notification: " + e.name)
 
+    elif e.notify_method == notify_type.webhook:
+        try:
+            for addr in e.settings['toaddr']:
+                journal.WriteLog(module_name, "Normal", "notice", "send webhook to addr " + addr + " method " + e.settings['request'])
+
+                if e.settings['request'] == 'WEBget':
+                    requests.get(addr)
+                elif e.settings['request'] == 'WEBpost':
+                    requests.post(addr, data=json.dumps(data), headers={ 'Content-Type' : 'application/json' })
+        except:
+            journal.WriteLog(module_name, "Normal", "error", "Can't send webhook. Notification: " + e.name)
     else:
         journal.WriteLog(module_name, "Normal", "error", "Unknown notify type")
 

@@ -4,7 +4,7 @@ TITLE="OWRT-notifications"
 
 PKG_NAME="OWRT-notifications"
 PKG_VERSION="1.1"
-PKG_RELEASE=1
+PKG_RELEASE=2
 PKG_DEPENDS=OWRT-log
 
 MODULE_FILES=notify.py Configname
