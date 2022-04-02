@@ -10,6 +10,7 @@ config globals 'globals'
 	list method 'syslog.Журнал'
 	list method 'snmptrap.Отправить snmp сообщение'
 	list method 'sms.Сообщение SMS'
+	list method 'webhook.Вебхук уведомление'
 
 config notify 'prototype'
 	option name 'Notify'
