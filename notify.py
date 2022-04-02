@@ -312,7 +312,7 @@ def send_notify(e, data):
         try:
             #send snmptrap via system call
             for addr in e.settings['toaddr']:
-                os.system('snmptrap -c public -v 2c ' + addr + ':' + e.settings['port'] + ' "" ' + e.settings['oid'] + ' 1 s "OWRT-Notification trap"')
+                os.system('snmptrap -c public -v 2c ' + addr + ':' + e.settings['port'] + ' "" ' + e.settings['oid'] + ' 1 s "' + json.dumps(data) + '"')
         except:
             journal.WriteLog(module_name, "Normal", "error", "Can't send snmptrap. Notification: " + e.name)
 
