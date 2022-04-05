@@ -6,7 +6,7 @@ def help():
     print(f"Usage: {sys.argv[0]} <version>")
 
 if __name__ == "__main__":
-    expected_version = "0.1"
+    expected_version = "1.1"
 
     if len(sys.argv) != 2:
         help()
